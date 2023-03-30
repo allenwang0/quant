@@ -1,0 +1,1085 @@
+---
+title: "Voleon Work Sample"
+author: "Allen Wang"
+date: "2023-02-13"
+output: 
+  tufte::tufte_handout: default
+---
+
+# Overview
+In this report, I will analyze ten different stocks by exploring different technical indicators. Technical indicators are patterns from data that can be used to predict future pricing of assets and make decisions about trades.
+First, I will compute these indicators and discuss their impact within the context of these ten stocks.
+Next, I will visualize these indicators and explore trends and opportunities.
+
+
+# Dataset overview
+In this data set, I will be analyzing ten stocks:
+
+* FAST (Fastenal)
+* WBA (Walgreens)
+* AAPL (Apple)
+* MS (Morgan Stanley)
+* CVX (Chevron)
+* JPM (JP Morgan)
+* XOM (Exxon Mobil)
+* TSLA (Tesla)
+* JD (JD.com)
+* SPCE (Virgin Galactic)
+
+There are 598 entries each, consisting of 26 entries per day and 23 days total
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(PerformanceAnalytics)
+library(zoo)
+library(ggplot2)
+library(quantmod)
+library(tidyr)
+library(reshape2)  
+library(pracma)
+library(TTR)
+library(patchwork)
+library(tidyquant)
+library(RcppRoll)
+library(mefa)
+```
+
+
+
+```{r, include = FALSE}
+df <- read.csv("/Users/allenwang/Desktop/junior/Project/TradingIntern.WS.data.csv")
+```
+
+
+```{r, echo = FALSE}
+df$datetime <- as.POSIXct(df$datetime, format = "%Y-%m-%d %H:%M:%S")
+```
+
+```{r, echo = FALSE, include = FALSE}
+summary(df)
+```
+
+
+
+```{r, echo = FALSE}
+fast <- df[1:598, ]
+wba <- df[599:1196, ]
+aapl <- df[1197:1794, ]
+ms <- df[1795:2392, ]
+cvx <- df[2393:2990, ]
+jpm <- df[2991:3588, ]
+xom <- df[3589:4186, ]
+tsla <- df[4187:4784, ]
+jd <- df[4785:5382, ]
+spce <- df[5383:5980, ]
+```
+
+
+
+
+```{r, include = FALSE}
+symbols <- c("fast", "wba", "aapl", "ms", "cvx", "jpm", "xom", "tsla", "jd", "spce" )
+```
+
+\newpage
+
+# Price overview
+
+```{r, echo = FALSE}
+# Extract price data for each stock
+aapl_price <- aapl$midpoint
+cvx_price <- cvx$midpoint
+fast_price <- fast$midpoint
+jd_price <- jd$midpoint
+jpm_price <- jpm$midpoint
+ms_price <- ms$midpoint
+spce_price <- spce$midpoint
+tsla_price <- tsla$midpoint
+wba_price <- wba$midpoint
+xom_price <- xom$midpoint
+```
+
+
+```{r, echo = FALSE}
+price_chart <- function(data) {
+  
+  p <- ggplot(data = fast, aes(x=X)) + 
+    geom_line(aes(y = midpoint), color = "black") +
+    scale_x_continuous(name = "Time") +
+    scale_y_continuous(name = "Price") +
+    labs(title = "Stock Price (March 2022)")
+  
+  options(repr.plot.width = 14, repr.plot.height = 8)
+  
+  return(p)
+}
+```
+
+
+
+```{r, echo = FALSE}
+# Plot each stock price over time
+aapl_chart <- ggplot(data=aapl, aes(x=X, y=midpoint, group=1)) +
+  geom_line() + 
+  labs(title = "Apple Stock Price (March 2022)") +
+  scale_x_continuous(name = "Time") +
+  scale_y_continuous(name = "Price ($)")
+
+cvx_chart <- ggplot(data=cvx, aes(x=X, y=midpoint, group=1)) +
+  geom_line() + 
+  labs(title = "Chevron Stock Price (March 2022)") +
+  scale_x_continuous(name = "Time") +
+  scale_y_continuous(name = "Price ($)")
+
+fast_chart <- ggplot(data=fast, aes(x=X, y=midpoint, group=1)) +
+  geom_line() + 
+  labs(title = "Fastenal Stock Price (March 2022)") +
+  scale_x_continuous(name = "Time") +
+  scale_y_continuous(name = "Price ($)")
+
+jd_chart <- ggplot(data=jd, aes(x=X, y=midpoint, group=1)) +
+  geom_line() + 
+  labs(title = "JD.com Stock Price (March 2022)") +
+  scale_x_continuous(name = "Time") +
+  scale_y_continuous(name = "Price ($)")
+
+jpm_chart <- ggplot(data=jpm, aes(x=X, y=midpoint, group=1)) +
+  geom_line() + 
+  labs(title = "JP Morgan Stock Price (March 2022)") +
+  scale_x_continuous(name = "Time") +
+  scale_y_continuous(name = "Price ($)")
+
+ms_chart <- ggplot(data=ms, aes(x=X, y=midpoint, group=1)) +
+  geom_line() + 
+  labs(title = "Morgan Stanley Stock Price (March 2022)") +
+  scale_x_continuous(name = "Time") +
+  scale_y_continuous(name = "Price ($)")
+
+spce_chart <- ggplot(data=spce, aes(x=X, y=midpoint, group=1)) +
+  geom_line() + 
+  labs(title = "Virgin Galactic Stock Price (March 2022)") +
+  scale_x_continuous(name = "Time") +
+  scale_y_continuous(name = "Price ($)")
+
+tsla_chart <- ggplot(data=tsla, aes(x=X, y=midpoint, group=1)) +
+  geom_line() + 
+  labs(title = "Tesla Stock Price (March 2022)") +
+  scale_x_continuous(name = "Time") +
+  scale_y_continuous(name = "Price ($)")
+
+wba_chart <- ggplot(data=wba, aes(x=X, y=midpoint, group=1)) +
+  geom_line() + 
+  labs(title = "Walgreens Stock Price (March 2022)") +
+  scale_x_continuous(name = "Time") +
+  scale_y_continuous(name = "Price ($)")
+
+xom_chart <- ggplot(data=xom, aes(x=X, y=midpoint, group=1)) +
+  geom_line() + 
+  labs(title = "Exxon Mobil Stock Price (March 2022)") +
+  scale_x_continuous(name = "Time") +
+  scale_y_continuous(name = "Price ($)")
+
+```
+
+
+```{r, echo = FALSE}
+aapl_chart
+```
+&nbsp;
+```{r, echo = FALSE}
+cvx_chart
+```
+&nbsp;
+```{r, echo = FALSE}
+fast_chart
+```
+&nbsp;
+```{r, echo = FALSE}
+jd_chart
+```
+&nbsp;
+```{r, echo = FALSE}
+jpm_chart
+```
+&nbsp;
+```{r, echo = FALSE}
+ms_chart
+```
+&nbsp;
+```{r, echo = FALSE}
+spce_chart
+```
+&nbsp;
+```{r, echo = FALSE}
+tsla_chart
+```
+&nbsp;
+```{r, echo = FALSE}
+wba_chart
+```
+&nbsp;
+```{r, echo = FALSE}
+xom_chart
+```
+&nbsp;
+
+\newpage
+
+# Volume
+```{r, echo = FALSE}
+volume_plot <- function(data) {
+  data$vol_ma <- movavg(data$volume, 52, type = "e")
+  
+  p <- ggplot(data = data, aes(x = X)) + 
+    geom_bar(aes(y = volume), stat="identity", linewidth=.1, color = "blue", alpha=.4) +
+    geom_line(aes(y = vol_ma), color = "red") +
+    scale_x_continuous(name = "Time") +
+    scale_y_continuous(name = "Volume") +
+    labs(title = "Volume")
+  
+  options(repr.plot.width = 14, repr.plot.height = 8)
+  
+  return(p)
+}
+```
+
+
+
+```{r, echo = FALSE}
+fast$vol_ma <- movavg(fast$volume, 130, type = "e")
+```
+
+```{r, echo = FALSE, warning = FALSE}
+fast_vol <- ggplot(data = fast, aes(x = X)) + 
+  geom_bar(aes(y = volume), stat="identity", linewidth=.1, color = "blue", alpha=.4) +
+  geom_line(aes(y = vol_ma), color = "red") +
+  scale_x_continuous(name = "Time") +
+  scale_y_continuous(name = "Volume") +
+  labs(title = "Volume")
+```
+
+
+## Fastenal
+```{r, echo = FALSE, warning = FALSE}
+fast_vol
+```
+&nbsp;
+&nbsp;
+
+## Walgreens
+```{r, echo = FALSE}
+volume_plot(wba)
+```
+&nbsp;
+&nbsp;
+
+## Apple
+```{r, echo = FALSE}
+volume_plot(aapl)
+```
+&nbsp;
+&nbsp;
+
+## Morgan Stanley
+```{r, echo = FALSE}
+volume_plot(ms)
+```
+&nbsp;
+&nbsp;
+
+## Chevron
+```{r, echo = FALSE}
+volume_plot(cvx)
+```
+&nbsp;
+&nbsp;
+
+## JP Morgan
+```{r, echo = FALSE, warning = FALSE}
+volume_plot(jpm)
+```
+&nbsp;
+&nbsp;
+
+## Exxon Mobil
+```{r, echo = FALSE, warning = FALSE}
+volume_plot(xom)
+```
+&nbsp;
+&nbsp;
+
+## Tesla
+```{r, echo = FALSE, warning = FALSE}
+volume_plot(tsla)
+```
+&nbsp;
+&nbsp;
+
+## JD.com
+```{r, echo = FALSE, warning = FALSE}
+volume_plot(jd)
+```
+&nbsp;
+&nbsp;
+
+## Virgin Galactic
+```{r, echo = FALSE, warning = FALSE}
+volume_plot(spce)
+```
+
+\newpage
+
+# Technical Indicators
+I will explore these 6 indicators:
+
+* Simple moving average (SMA)
+* Exponential weighted moving average (EWMA)
+* Bollinger Bands (BB)
+* Relative strength index (RSI)
+* Moving average convergence divergence (MACD)
+* On-balance volume
+
+
+I also considered calculating these following indicators, but there was not enough data to create a meaningful plot:
+
+* Average directional index
+* Aroon indicator
+* Stochastic oscillator
+* Accumulation/distribution line
+
+
+\newpage
+
+# Simple Moving Average (SMA)
+The simple moving average can be used to find support and resistance
+
+```{r, echo = FALSE}
+sma_plot <- function(data) {
+  data$ma_daily <- movavg(data$midpoint, 26, type = "s")
+  data$ma_twoday <- movavg(data$midpoint, 52, type = "s")
+  data$ma_weekly <- movavg(data$midpoint, 130, type = "s")
+  
+  
+  p <- ggplot(data = data, aes(x = X)) + 
+    
+    geom_line(aes(y = midpoint), color = "steelblue") +
+    geom_line(aes(y = ma_daily), color = "orange") +
+    geom_line(aes(y = ma_twoday), color = "red") +
+    geom_line(aes(y = ma_weekly), color = "black") + 
+    labs(title = "Moving Averages (March 2022)") +
+    scale_x_continuous(name = "Time") +
+    scale_y_continuous(name = "Price ($)")
+  
+  options(repr.plot.width = 14, repr.plot.height = 8)
+  
+  return(p)
+}
+```
+
+## Fastenal
+```{r, echo = FALSE}
+sma_plot(fast)
+```
+&nbsp;
+&nbsp;
+
+## Walgreens
+```{r, echo = FALSE}
+sma_plot(wba)
+```
+&nbsp;
+&nbsp;
+
+## Apple
+```{r, echo = FALSE}
+sma_plot(aapl)
+```
+&nbsp;
+&nbsp;
+
+## Morgan Stanley
+```{r, echo = FALSE}
+sma_plot(ms)
+```
+&nbsp;
+&nbsp;
+
+## Chevron
+```{r, echo = FALSE}
+sma_plot(cvx)
+```
+&nbsp;
+&nbsp;
+
+## JP Morgan
+```{r, echo = FALSE}
+sma_plot(jpm)
+```
+&nbsp;
+&nbsp;
+
+## Exxon Mobil
+```{r, echo = FALSE}
+sma_plot(xom)
+```
+&nbsp;
+&nbsp;
+
+## Tesla
+```{r, echo = FALSE}
+sma_plot(tsla)
+```
+&nbsp;
+&nbsp;
+
+## JD.com
+```{r, echo = FALSE}
+sma_plot(jd)
+```
+
+\newpage
+# Exponential Weighted Moving Average (EWMA)
+
+The exponential weighted moving average is used as a measure of volatility through historical predictions from past pricing data and implied predictions from market conditions.
+
+```{r, echo = FALSE}
+ewma_plot <- function(data) {
+  data$ewma <- movavg(data$midpoint, 26, type = "e")
+  data$ma_daily <- movavg(data$midpoint, 26, type = "s")
+  
+  p <- ggplot(data = data, aes(x = X)) + 
+    geom_line(aes(y = midpoint), color = "steelblue") +
+    geom_line(aes(y = ma_daily), color = "orange") +
+    geom_line(aes(y = ewma), color = "black") +
+    labs(title = "Exponential Weighted Moving Average (March 2022)") +
+    scale_x_continuous(name = "Time") +
+    scale_y_continuous(name = "Price ($)")
+  
+  options(repr.plot.width = 14, repr.plot.height = 8)
+  
+  return(p)
+}
+```
+
+
+## Fastenal
+```{r, echo = FALSE, warning = FALSE}
+ewma_plot(fast)
+```
+&nbsp;
+&nbsp;
+
+## Walgreens
+```{r, echo = FALSE, warning = FALSE}
+ewma_plot(wba)
+```
+&nbsp;
+&nbsp;
+
+## Apple
+```{r, echo = FALSE, warning = FALSE}
+ewma_plot(aapl)
+```
+&nbsp;
+&nbsp;
+
+## Morgan Stanley
+```{r, echo = FALSE, warning = FALSE}
+ewma_plot(ms)
+```
+&nbsp;
+&nbsp;
+
+## Chevron
+```{r, echo = FALSE, warning = FALSE}
+ewma_plot(cvx)
+```
+&nbsp;
+&nbsp;
+
+## JP Morgan
+```{r, echo = FALSE, warning = FALSE}
+ewma_plot(jpm)
+```
+&nbsp;
+&nbsp;
+
+## Exxon Mobil
+```{r, echo = FALSE, warning = FALSE}
+ewma_plot(xom)
+```
+&nbsp;
+&nbsp;
+
+## Tesla
+```{r, echo = FALSE, warning = FALSE}
+ewma_plot(tsla)
+```
+&nbsp;
+&nbsp;
+
+## JD.com
+```{r, echo = FALSE, warning = FALSE}
+ewma_plot(jd)
+```
+&nbsp;
+&nbsp;
+
+## Virgin Galactic
+```{r, echo = FALSE, warning = FALSE}
+ewma_plot(spce)
+```
+
+
+\newpage
+
+
+```{r, include = FALSE, echo = FALSE}
+# Returns a data frame including the high, low, and close prices for each day.
+hlc_plot <- function(data) {
+  prices <- data$midpoint
+  
+  # Initialize each column
+  high_prices <- list()
+  low_prices <- list()
+  close_prices <- list()
+  
+  
+  # Loop through each day
+  for (i in 1:23) {
+    # Calculate the indices for that day's prices
+    start_idx <- (i-1)*26 + 1
+    end_idx <- i*26
+    
+    # Get that day's prices
+    day_prices <- prices[start_idx:end_idx]
+    
+    # Get the high, low, and close prices for that day
+    high <- max(day_prices)
+    low <- min(day_prices)
+    close <- day_prices[length(day_prices)]
+    
+    # Append the prices to the appropriate lists
+    high_prices[[i]] <- high
+    low_prices[[i]] <- low
+    close_prices[[i]] <- close
+  }
+
+  
+  # Concatenate columns
+  hlc <- data.frame(high=unlist(high_prices), low=unlist(low_prices), close=unlist(close_prices))
+  hlc$x <- 1:23
+  
+  p <- ggplot(data = hlc, aes(x = x)) + 
+    
+    geom_segment(aes(y = high, yend = low, xend = x, color = "HLC")) +
+    
+    geom_point(aes(y = close, color = "Close"), size = 3) +
+    
+    scale_color_manual(name = "Price", values = c("HLC" = "black", "Close" = "red")) +
+    
+    labs(title = "High/Low/Close Prices (March 2022)") +
+    scale_x_continuous(name = "Time") +
+    scale_y_continuous(name = "Price ($)")
+  
+  options(repr.plot.width = 14, repr.plot.height = 8)
+  
+  return(p)
+}
+```
+
+
+## Fastenal
+```{r, echo = FALSE}
+fast_hlc <- hlc_plot(fast)
+fast_hlc
+```
+
+&nbsp;
+&nbsp;
+
+## Walgreens
+```{r, echo = FALSE}
+wba_hlc <- hlc_plot(wba)
+wba_hlc
+```
+
+&nbsp;
+&nbsp;
+
+## Apple
+```{r, echo = FALSE}
+aapl_hlc <- hlc_plot(aapl)
+aapl_hlc
+```
+
+&nbsp;
+&nbsp;
+
+## Morgan Stanley
+```{r, echo = FALSE}
+ms_hlc <- hlc_plot(ms)
+ms_hlc
+```
+
+&nbsp;
+&nbsp;
+
+## Chevron
+```{r, echo = FALSE}
+cvx_hlc <- hlc_plot(cvx)
+cvx_hlc
+```
+
+&nbsp;
+&nbsp;
+
+## JP Morgan
+```{r, echo = FALSE}
+jpm_hlc <- hlc_plot(jpm)
+jpm_hlc
+```
+
+&nbsp;
+&nbsp;
+
+## Exxon Mobil
+```{r, echo = FALSE}
+xom_hlc <- hlc_plot(xom)
+xom_hlc
+```
+
+&nbsp;
+&nbsp;
+
+## Tesla
+```{r, echo = FALSE}
+tsla_hlc <- hlc_plot(tsla)
+tsla_hlc
+```
+
+&nbsp;
+&nbsp;
+
+## JD.com
+```{r, echo = FALSE}
+jd_hlc <- hlc_plot(jd)
+jd_hlc
+```
+
+&nbsp;
+&nbsp;
+
+## Virgin Galactic
+```{r, echo = FALSE}
+spce_hlc <- hlc_plot(spce)
+spce_hlc 
+```
+
+
+
+
+
+
+\newpage
+
+# Bollinger Bands (BB)
+Bollinger bands consist of the middle band (SMA) and the upper and lower bands, which are 2 standard deviations above and below the SMA, respectively.
+
+```{r, echo = FALSE}
+bb_plot <- function(data) {
+  data$ma_daily <- movavg(data$midpoint, 26, type = "s")
+  data$ma_twoday <- movavg(data$midpoint, 52, type = "s")
+  data$ma_weekly <- movavg(data$midpoint, 130, type = "s")
+  
+  # Calculate one standard deviation of differences between current price and daily moving average
+  data$sd <- sd(data$midpoint - data$ma_daily)
+  # Calculate upper and lower Bollinger bands
+  data$upperBB <- data$ma_daily + 2 * data$sd
+  data$lowerBB <- data$ma_daily - 2 * data$sd
+  
+  
+  p <- ggplot(data = data, aes(x = X)) + 
+    geom_line(aes(y = upperBB), color = "blue") +
+    geom_line(aes(y = ma_daily), color = "black") +
+    
+    geom_line(aes(y = midpoint), color = "steelblue") +
+    geom_line(aes(y = lowerBB), color = "red") +
+    scale_x_continuous(name = "Time") +
+    scale_y_continuous(name = "Price ($)") + labs(title = "Bollinger Bands")
+  
+  options(repr.plot.width = 14, repr.plot.height = 8)
+  
+  return(p)
+}
+```
+
+## Fastenal
+```{r, echo = FALSE}
+bb_plot(fast)
+```
+&nbsp;
+&nbsp;
+
+## Walgreens
+```{r, echo = FALSE}
+bb_plot(wba)
+```
+&nbsp;
+&nbsp;
+
+## Apple
+```{r, echo = FALSE}
+bb_plot(aapl)
+```
+&nbsp;
+&nbsp;
+
+## Morgan Stanley
+```{r, echo = FALSE}
+bb_plot(ms)
+```
+&nbsp;
+&nbsp;
+
+## Chevron
+```{r, echo = FALSE}
+bb_plot(cvx)
+```
+&nbsp;
+&nbsp;
+
+## JP Morgan
+```{r, echo = FALSE}
+bb_plot(jpm)
+```
+&nbsp;
+&nbsp;
+
+## Exxon Mobil
+```{r, echo = FALSE}
+bb_plot(xom)
+```
+&nbsp;
+&nbsp;
+
+## Tesla
+```{r, echo = FALSE}
+bb_plot(tsla)
+```
+&nbsp;
+&nbsp;
+
+## JD.com
+```{r, echo = FALSE}
+bb_plot(jd)
+```
+&nbsp;
+&nbsp;
+
+## Virgin Galactic
+```{r, echo = FALSE}
+bb_plot(spce)
+```
+
+
+
+
+\newpage
+
+
+# Relative Strength Index (RSI)
+Relative strength index is used to determine momentum of an asset to describe the speed of price changes. Assets are overbought when RSI > 70 and oversold when RSI < 30.
+
+```{r, echo = FALSE}
+rsi_plot <- function(data) {
+  data$ma_daily <- movavg(data$midpoint, 26, type = "s")
+  
+  # Calculate relative strength index
+  data$rsi <- RSI(data$midpoint, n = 26)
+  
+  p <- ggplot(data = data, aes(x = X)) + 
+    geom_line(aes(y = ma_daily), color = "black") +
+    geom_line(aes(y = rsi), color = "orange") + 
+    labs(title = "Relative Strength Index (March 2022)") +
+    scale_y_continuous(name = "Price ($)", breaks = c(30, 50, 70), limits = c(20,80)) + 
+    scale_x_continuous(name = "Relative Strength Index (RSI)")
+  
+  options(repr.plot.width = 14, repr.plot.height = 8)
+  
+  return(p)
+}
+```
+
+
+## Fastenal 
+```{r, echo = FALSE, warning = FALSE}
+rsi_plot(fast)
+```
+&nbsp;
+&nbsp;
+
+## Walgreens
+```{r, echo = FALSE, warning = FALSE}
+rsi_plot(wba)
+```
+&nbsp;
+&nbsp;
+
+## Apple
+```{r, echo = FALSE, warning = FALSE}
+rsi_plot(aapl)
+```
+&nbsp;
+&nbsp;
+
+## Morgan Stanley
+```{r, echo = FALSE, warning = FALSE}
+rsi_plot(ms)
+```
+&nbsp;
+&nbsp;
+
+## Chevron
+```{r, echo = FALSE, warning = FALSE}
+rsi_plot(cvx)
+```
+&nbsp;
+&nbsp;
+
+## JP Morgan
+```{r, echo = FALSE, warning = FALSE}
+rsi_plot(jpm)
+```
+&nbsp;
+&nbsp;
+
+## Exxon Mobil
+```{r, echo = FALSE, warning = FALSE}
+rsi_plot(xom)
+```
+&nbsp;
+&nbsp;
+
+## Tesla
+```{r, echo = FALSE, warning = FALSE}
+rsi_plot(tsla)
+```
+&nbsp;
+&nbsp;
+
+## JD.com
+```{r, echo = FALSE, warning = FALSE}
+rsi_plot(jd)
+```
+&nbsp;
+&nbsp;
+
+## Virgin Galactic
+```{r, echo = FALSE, warning = FALSE}
+rsi_plot(spce)
+```
+
+\newpage
+
+# Moving Average Convergence/Divergence
+
+```{r, echo = FALSE}
+macd_plot <- function(data) {
+  data$ma_daily <- movavg(data$midpoint, 26, type = "s")
+  data$ma_twoday <- movavg(data$midpoint, 52, type = "s")
+  data$ma_weekly <- movavg(data$midpoint, 130, type = "s")
+  
+  # Calculate the MACD line
+  data$macdLine <- data$ma_daily - data$ma_twoday
+  
+  # Calculate the signal line
+  data$signalLine <- movavg(data$macdLine, 9, type = "e")
+  
+  # Calculate the histogram
+  data$histogram <- data$macdLine - data$signalLine
+  
+  p <- ggplot(data = data, aes(x = X)) + 
+    geom_bar(aes(y = histogram), stat="identity", linewidth=.1, color = "blue", alpha=.4) +
+    geom_line(aes(y = signalLine), color = "red", linetype = "dashed") +
+    geom_line(aes(y = macdLine), color = "steelblue") +
+    scale_x_continuous(name = "Time") +
+    scale_y_continuous(name = "MACD") +
+    labs(title = "Moving Average Convergence/Divergence (March 2022)")
+  
+  options(repr.plot.width = 14, repr.plot.height = 8)
+  
+  return(p)
+}
+```
+
+## Fastenal
+```{r, echo = FALSE, warning = FALSE}
+macd_plot(fast)
+```
+&nbsp;
+&nbsp;
+
+## Walgreens
+```{r, echo = FALSE, warning = FALSE}
+macd_plot(wba)
+```
+&nbsp;
+&nbsp;
+
+## Apple
+```{r, echo = FALSE, warning = FALSE}
+macd_plot(aapl)
+```
+&nbsp;
+&nbsp;
+
+## Morgan Stanley
+```{r, echo = FALSE, warning = FALSE}
+macd_plot(ms)
+```
+&nbsp;
+&nbsp;
+
+## Chevron
+```{r, echo = FALSE, warning = FALSE}
+macd_plot(cvx)
+```
+&nbsp;
+&nbsp;
+
+## JP Morgan
+```{r, echo = FALSE, warning = FALSE}
+macd_plot(jpm)
+```
+&nbsp;
+&nbsp;
+
+## Exxon Mobil
+```{r, echo = FALSE, warning = FALSE}
+macd_plot(xom)
+```
+&nbsp;
+&nbsp;
+
+## Tesla
+```{r, echo = FALSE, warning = FALSE}
+macd_plot(tsla)
+```
+&nbsp;
+&nbsp;
+
+## JD.com
+```{r, echo = FALSE, warning = FALSE}
+macd_plot(jd)
+```
+&nbsp;
+&nbsp;
+
+## Virgin Galactic
+```{r, echo = FALSE, warning = FALSE}
+macd_plot(spce)
+```
+
+
+
+\newpage
+
+# On-balance volume
+```{r, echo = FALSE}
+obv_plot <- function(data) {
+  data$obv <- OBV(data$midpoint, data$volume)
+  data$obv_ma <- movavg(data$obv, 52, type = "e")
+  
+  p <- ggplot(data = data, aes(x = data$X)) + 
+    geom_bar(aes(y = obv), stat="identity", linewidth=.1, color = "blue", alpha=.4) +
+    geom_line(aes(y = obv_ma), color = "red") +
+    scale_x_continuous(name = "Time") +
+    scale_y_continuous(name = "On Balance Volume") +
+    labs(title = "On-Balance Volume")
+  
+  options(repr.plot.width = 14, repr.plot.height = 8)
+    
+  return(p)
+}
+```
+
+## Fastenal
+```{r, echo = FALSE, warning = FALSE}
+obv_plot(fast)
+```
+&nbsp;
+&nbsp;
+
+## Walgreens
+```{r, echo = FALSE, warning = FALSE}
+obv_plot(wba)
+```
+&nbsp;
+&nbsp;
+
+## Apple
+```{r, echo = FALSE, warning = FALSE}
+obv_plot(aapl)
+```
+&nbsp;
+&nbsp;
+
+## Morgan Stanley
+```{r, echo = FALSE, warning = FALSE}
+obv_plot(ms)
+```
+&nbsp;
+&nbsp;
+
+## Chevron
+```{r, echo = FALSE, warning = FALSE}
+obv_plot(cvx)
+```
+&nbsp;
+&nbsp;
+
+## JP Morgan
+```{r, echo = FALSE, warning = FALSE}
+obv_plot(jpm)
+```
+&nbsp;
+&nbsp;
+
+## Exxon Mobil
+```{r, echo = FALSE, warning = FALSE}
+obv_plot(xom)
+```
+&nbsp;
+&nbsp;
+
+## Tesla
+```{r, echo = FALSE, warning = FALSE}
+obv_plot(tsla)
+```
+&nbsp;
+&nbsp;
+
+## JD.com
+```{r, echo = FALSE, warning = FALSE}
+obv_plot(jd)
+```
+&nbsp;
+&nbsp;
+
+## Virgin Galactic
+```{r, echo = FALSE, warning = FALSE}
+obv_plot(spce)
+```
+
+
+\newpage
+
+
+
+
+
